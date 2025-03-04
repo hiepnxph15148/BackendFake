@@ -2,7 +2,8 @@ import { useState } from "react";
 import Places from "./Places.jsx";
 import { useEffect } from "react";
 import Error from "./Error.jsx";
-
+import { sortPlacesByDistance } from "../loc.js";
+import { fetchAvailablePlaces } from "../http.js";
 export default function AvailablePlaces({ onSelectPlace }) {
   // Todo : fetch available places from backend API
   const [isFetching, setIsFetching] = useState(false);
@@ -13,22 +14,31 @@ export default function AvailablePlaces({ onSelectPlace }) {
     async function fetchPlaces() {
       setIsFetching(true);
       try {
-        const response = await fetch("http://localhost:3000/places");
-        const resData = await response.json(); 
-        if (!response.ok) {
-          throw new Error("Failed to fetch places.");
-        }
-        setAvailablePlaces(resData.places);
+        // Fetch available places from the backend API
+        const places = await fetchAvailablePlaces(availablePlaces);
+        // Sort locations by distance
+        navigator.geolocation.getCurrentPosition((position) => {
+          const sortedPlaces = sortPlacesByDistance(
+            places,
+            position.coords.latitude,
+            position.coords.longitude
+          );
+          setAvailablePlaces(sortedPlaces);
+          // Reset error state if there was any
+          setIsFetching(false);
+        });
       } catch (error) {
         setError({
-          message: error.message || "error"
+          message: error.message || "error",
         });
-      }
+        // Reset fetching state if there was any
         setIsFetching(false);
+      }
     }
     fetchPlaces();
   }, []);
-  if(error) {
+  // Render error message if there is one
+  if (error) {
     return <Error title="An error occurred!" message={error.message} />;
   }
   // Render available places
